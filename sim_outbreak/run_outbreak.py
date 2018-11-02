@@ -1,14 +1,131 @@
 import snap
 import csv
+import math
+import random
 
 def runOutBreakSteadyState():
 	print 'running outbreak with steady state'
 
-def runOutBreakTimestamp():
-	print 'running according to timestamps'
+def getLastTimestep(Network, eidMap):
+	max_timestamp = 0
+	for k in eidMap:
+		eidList = eidMap[k]
+		for eid in eidList:
+			timestamp = Network.GetIntAttrDatE(eid, 'timestamp')
+			if timestamp > max_timestamp:
+				max_timestamp = timestamp
 
-def loadDNCNetwork(filename, p_infect, p_infect_hardened, t_recover, hardened_ids):
+	return max_timestamp
+
+def buildOutgoingEdgeIDMap(Network):
+	eidMap = dict()
+	for edge in Network.Edges():
+		srcID = edge.GetSrcNId()
+		if srcID not in eidMap:
+			outgoing_edges = [edge.GetId()]
+			eidMap[srcID] = outgoing_edges
+		else:
+			outgoing_edges = eidMap[srcID]
+			outgoing_edges.append(edge.GetId())
+			eidMap[srcID] = outgoing_edges
+
+	return eidMap
+
+def getEarliestEmailTimestamp(Network, nID, eidMap):
+	min_timestamp = float('inf')
+
+	if nID in eidMap:
+		outgoing_edges = eidMap[nID]
+		for eid in outgoing_edges:
+			timestamp = Network.GetIntAttrDatE(eid, 'timestamp')
+			if timestamp < min_timestamp:
+				min_timestamp = timestamp
+
+	return min_timestamp
+
+def findEdgeWithTimestamp(Network, nID, eidMap, cur_timestamp):
+	if nID in eidMap:
+		outgoing_edges = eidMap[nID]
+		for eid in outgoing_edges:
+			timestamp = Network.GetIntAttrDatE(eid, 'timestamp')
+			if timestamp == cur_timestamp:
+				return eid
+
+	return -1
+
+# Randomly determine if the node should be infected based on edge infect probability
+def infectNode(Network, eid):
+	p_infect = Network.GetFltAttrDatE(eid, 'p_infect')
+	rndInt = random.uniform(0, 1)
+	
+	if rndInt < p_infect:
+		return True
+
+	return False
+
+def runOutBreakTimestamp(Network, p_initial_infect, num_detectors):
+	print 'running timestamp model'
+	# TODO: Extend to include recovery time
+	eidMap = buildOutgoingEdgeIDMap(Network)
+	max_timestamp = getLastTimestep(Network, eidMap)
+
+	# Mark initial nodes infected
+	num_nodes_infect = math.floor(Network.GetNodes() * p_initial_infect)
+	cur_infected_ids = []
+	for i in range(int(num_nodes_infect)):
+		nID = Network.GetRndNId()
+		if nID not in cur_infected_ids:
+			cur_infected_ids.append(nID)
+			Network.AddStrAttrDatN(nID, 'infected', 'state') # resets state
+
+	print 'INITIAL SET OF INFECTED NODES Size: ' + str(num_nodes_infect)
+	print cur_infected_ids
+
+	# Get earliest timestamp from these infected nodes - set to current timestamp (infection start time)
+	cur_timestamp = float('inf')
+	for nID in cur_infected_ids:
+		earliest = getEarliestEmailTimestamp(Network, nID, eidMap)
+		if earliest < cur_timestamp:
+			cur_timestamp = earliest
+
+	detectors_alerted = []
+	num_nodes_infected = len(cur_infected_ids)
+	steps = 0
+
+	print 'RUNNING FROM TIMESTEP ' + str(cur_timestamp) + ' TO ' + str(max_timestamp)
+	# Run outbreak until num_detectors are alerted (or we send the last email)
+	while len(detectors_alerted) < num_detectors and cur_timestamp <= max_timestamp:
+		if steps % 1000 == 0:
+			print 'STEP: ' + str(steps)
+			print 'TIMESTAMP: ' + str(cur_timestamp)
+			print 'CURRENTLY INFECTED: ' + str(cur_infected_ids)
+		
+		for nID in cur_infected_ids:
+			eid = findEdgeWithTimestamp(Network, nID, eidMap, cur_timestamp)
+			if eid != -1:
+				edge = Network.GetEI(eid)
+				next_node = edge.GetDstNId()
+				if Network.GetStrAttrDatN(next_node, 'type') == 'detector':
+					if next_node not in detectors_alerted:
+						detectors_alerted.append(next_node)
+				if infectNode(Network, eid):
+					if next_node not in cur_infected_ids:
+						cur_infected_ids.append(next_node)
+						Network.AddStrAttrDatN(next_node, 'infected', 'state')
+
+		cur_timestamp+=1
+		steps+=1
+
+
+	# while num detectors alerted < num_detectors
+	# for each node in currently infected node ids
+	# 	check edge times if time == current unix timestamp
+	#		infect dstID with probability p -> add to currently infected node list + incrimented num infected nodes
+	# 		if detector -> add to detector alerted list
+
+def loadDNCNetwork(filename, p_infect, p_infect_hardened, t_recover, detector_ids, hardened_ids):
 	print 'Loading DNC Network'
+	added = 0
 
 	Network = snap.GenFull(snap.PNEANet, 0)
 	print Network.GetNodes(), Network.GetEdges()
@@ -28,32 +145,51 @@ def loadDNCNetwork(filename, p_infect, p_infect_hardened, t_recover, hardened_id
 				
 				# Add nodes to network if not already there
 				if not Network.IsNode(srcID):
+					added+=1
 					Network.AddNode(srcID)
+					# normal user or detector
+					if srcID in detector_ids:
+						Network.AddStrAttrDatN(srcID, 'detector', 'type')
+					else:
+						Network.AddStrAttrDatN(srcID, 'user', 'type')
+
 				if not Network.IsNode(dstID):
 					Network.AddNode(dstID)
+					# normal user or detector
+					if dstID in detector_ids:
+						Network.AddStrAttrDatN(dstID, 'detector', 'type')
+					else:
+						Network.AddStrAttrDatN(dstID, 'user', 'type')
 
 				# Add edge attributes (Note, multi edges allowed)
 				eid = Network.AddEdge(srcID, dstID)
 				Network.AddIntAttrDatE(eid, timestamp, 'timestamp')
 				Network.AddIntAttrDatE(eid, t_recover, 't_recover')
 				if dstID in hardened_ids:
-					Network.AddIntAttrDatE(eid, p_infect_hardened, 'p_infect_hardened')
+					Network.AddFltAttrDatE(eid, p_infect_hardened, 'p_infect') #TODO: Do we need to distinguish between hardened/de
 				else:
-					Network.AddIntAttrDatE(eid, p_infect, 'p_infect')
+					Network.AddFltAttrDatE(eid, p_infect, 'p_infect')
 
-				# Infected = 1, Susceptible (not infected) = 0
-				Network.AddIntAttrDatE(eid, 0, 'infected')
-			
+				# state: infected or susceptible
+				Network.AddStrAttrDatN(srcID, 'susceptible', 'state')
+				Network.AddStrAttrDatN(dstID, 'susceptible', 'state')
+
 			i+=1
 
 	# Add any disjoint nodes (nodes without entries in the tsv file)
 	for nID in range(maxID):
 		if nID > 0 and not Network.IsNode(nID):
 			Network.AddNode(nID)
+			Network.AddStrAttrDatN(nID, 'susceptible', 'state')
+			if nID in detector_ids:
+				Network.AddStrAttrDatN(nID, 'detector', 'type')
+			else:
+				Network.AddStrAttrDatN(nID, 'user', 'type')
 
 
 	print 'NUM NODES: ' + str(Network.GetNodes())
 	print 'NUM EDGES: ' + str(Network.GetEdges())
+	print 'NODES WITH OUTGOING EDGES: ' + str(added)
 	return Network
 
 # When testing out runs on a small network, it is easier to build test cases using this function
@@ -101,7 +237,12 @@ if __name__== "__main__":
 	p_infect_hardened = 0.3
 	t_recover = 30 # time in days to recovery
 	hardened_ids = [5, 419]
+	detector_ids = hardened_ids
 
-	loadDNCNetwork(filename, p_infect, p_infect_hardened, t_recover, hardened_ids)
+	N = loadDNCNetwork(filename, p_infect, p_infect_hardened, t_recover, hardened_ids, detector_ids)
+
+	p_initial_infect = 0.02 # Range 0-1 proportion of nodes to infect initially
+	num_detectors = 0.5 # number of detectors that must be alerted for simulation to end
+	runOutBreakTimestamp(N, p_initial_infect, num_detectors)
 
 
