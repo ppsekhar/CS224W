@@ -3,8 +3,7 @@ import csv
 import math
 import random
 
-def runOutBreakSteadyState():
-	print 'running outbreak with steady state'
+# Currently runs an outbreak on the DNC email network
 
 def getLastTimestep(Network, eidMap):
 	max_timestamp = 0
@@ -44,14 +43,17 @@ def getEarliestEmailTimestamp(Network, nID, eidMap):
 	return min_timestamp
 
 def findEdgeWithTimestamp(Network, nID, eidMap, cur_timestamp):
+	eids = []
 	if nID in eidMap:
 		outgoing_edges = eidMap[nID]
 		for eid in outgoing_edges:
 			timestamp = Network.GetIntAttrDatE(eid, 'timestamp')
 			if timestamp == cur_timestamp:
-				return eid
+				eids.append(eid)
+			if timestamp < cur_timestamp:
+				outgoing_edges.remove(eid)
 
-	return -1
+	return eids
 
 # Randomly determine if the node should be infected based on edge infect probability
 def infectNode(Network, eid):
@@ -72,11 +74,15 @@ def runOutBreakTimestamp(Network, p_initial_infect, num_detectors):
 	# Mark initial nodes infected
 	num_nodes_infect = math.floor(Network.GetNodes() * p_initial_infect)
 	cur_infected_ids = []
+	detectors_alerted = []
+
 	for i in range(int(num_nodes_infect)):
 		nID = Network.GetRndNId()
 		if nID not in cur_infected_ids:
 			cur_infected_ids.append(nID)
 			Network.AddStrAttrDatN(nID, 'infected', 'state') # resets state
+		if Network.GetStrAttrDatN(nID, 'type') == 'detector' and nID not in detectors_alerted:
+			detectors_alerted.append(nID)
 
 	print 'INITIAL SET OF INFECTED NODES Size: ' + str(num_nodes_infect)
 	print cur_infected_ids
@@ -88,21 +94,21 @@ def runOutBreakTimestamp(Network, p_initial_infect, num_detectors):
 		if earliest < cur_timestamp:
 			cur_timestamp = earliest
 
-	detectors_alerted = []
 	num_nodes_infected = len(cur_infected_ids)
 	steps = 0
 
 	print 'RUNNING FROM TIMESTEP ' + str(cur_timestamp) + ' TO ' + str(max_timestamp)
 	# Run outbreak until num_detectors are alerted (or we send the last email)
 	while len(detectors_alerted) < num_detectors and cur_timestamp <= max_timestamp:
-		if steps % 1000 == 0:
+		if steps % 10000 == 0:
 			print 'STEP: ' + str(steps)
 			print 'TIMESTAMP: ' + str(cur_timestamp)
 			print 'CURRENTLY INFECTED: ' + str(cur_infected_ids)
+			print 'DETECTORS ALERTED: ' + str(detectors_alerted)
 		
 		for nID in cur_infected_ids:
-			eid = findEdgeWithTimestamp(Network, nID, eidMap, cur_timestamp)
-			if eid != -1:
+			eids = findEdgeWithTimestamp(Network, nID, eidMap, cur_timestamp)
+			for eid in eids:
 				edge = Network.GetEI(eid)
 				next_node = edge.GetDstNId()
 				if Network.GetStrAttrDatN(next_node, 'type') == 'detector':
@@ -116,12 +122,6 @@ def runOutBreakTimestamp(Network, p_initial_infect, num_detectors):
 		cur_timestamp+=1
 		steps+=1
 
-
-	# while num detectors alerted < num_detectors
-	# for each node in currently infected node ids
-	# 	check edge times if time == current unix timestamp
-	#		infect dstID with probability p -> add to currently infected node list + incrimented num infected nodes
-	# 		if detector -> add to detector alerted list
 
 def loadDNCNetwork(filename, p_infect, p_infect_hardened, t_recover, detector_ids, hardened_ids):
 	print 'Loading DNC Network'
@@ -228,6 +228,23 @@ def loadTestNetwork():
 	# Load TSV DNC file
 	# For each row, add node, edge, timestamp, probability of infection
 
+# Marks k top nodes as detectors
+def loadDetectorIds(rankingFilename, k):
+	print 'Choosing ' + str(k) + ' detector ids'
+	detector_ids = []
+	with open(filename,'rb') as tsvin:
+		tsvin = csv.reader(tsvin, delimiter='\t')
+		i = 0
+		for row in tsvin:
+			if i != 0: # Ignore header
+				if i >= (k + 1):
+					break
+				nID = int(row[0])
+				detector_ids.append(nID)
+			i+=1
+
+	return detector_ids
+
 if __name__== "__main__":
 	print 'Running Outbreak with Timestamps'
 	
@@ -236,13 +253,15 @@ if __name__== "__main__":
 	p_infect = 0.8
 	p_infect_hardened = 0.3
 	t_recover = 30 # time in days to recovery
-	hardened_ids = [5, 419]
-	detector_ids = hardened_ids
 
-	N = loadDNCNetwork(filename, p_infect, p_infect_hardened, t_recover, hardened_ids, detector_ids)
+	hardened_ids = [5, 419503, 1897, 503, 1874]
+	detector_ids = loadDetectorIds('pageRank.txt', 100)
+	print detector_ids
+
+	N = loadDNCNetwork(filename, p_infect, p_infect_hardened, t_recover, detector_ids, hardened_ids)
 
 	p_initial_infect = 0.02 # Range 0-1 proportion of nodes to infect initially
-	num_detectors = 0.5 # number of detectors that must be alerted for simulation to end
+	num_detectors = 4 # number of detectors that must be alerted for simulation to end
 	runOutBreakTimestamp(N, p_initial_infect, num_detectors)
 
 
