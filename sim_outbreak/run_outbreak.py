@@ -65,6 +65,10 @@ def infectNode(Network, eid):
 
 	return False
 
+
+# TODO: Track time to first detection (PRINT)
+# TODO: Print time outbreak lasted (minimum detector nodes activated)
+# TODO (maybe): Track cascasdes? add recovery time? take some nodes offline?
 def runOutBreakTimestamp(Network, p_initial_infect, num_detectors):
 	print 'running timestamp model'
 	# TODO: Extend to include recovery time
@@ -77,7 +81,7 @@ def runOutBreakTimestamp(Network, p_initial_infect, num_detectors):
 	detectors_alerted = []
 
 	for i in range(int(num_nodes_infect)):
-		nID = Network.GetRndNId()
+		nID = Network.GetRndNId() # TODO: make this return different values on every run
 		if nID not in cur_infected_ids:
 			cur_infected_ids.append(nID)
 			Network.AddStrAttrDatN(nID, 'infected', 'state') # resets state
@@ -98,9 +102,10 @@ def runOutBreakTimestamp(Network, p_initial_infect, num_detectors):
 	steps = 0
 
 	print 'RUNNING FROM TIMESTEP ' + str(cur_timestamp) + ' TO ' + str(max_timestamp)
+	
 	# Run outbreak until num_detectors are alerted (or we send the last email)
 	while len(detectors_alerted) < num_detectors and cur_timestamp <= max_timestamp:
-		if steps % 10000 == 0:
+		if steps % 100000 == 0:
 			print 'STEP: ' + str(steps)
 			print 'TIMESTAMP: ' + str(cur_timestamp)
 			print 'CURRENTLY INFECTED: ' + str(cur_infected_ids)
@@ -253,15 +258,16 @@ if __name__== "__main__":
 	p_infect = 0.8
 	p_infect_hardened = 0.3
 	t_recover = 30 # time in days to recovery
+	k = 500 # Number of nodes to mark as detectors
 
 	hardened_ids = [5, 419503, 1897, 503, 1874]
-	detector_ids = loadDetectorIds('pageRank.txt', 100)
+	detector_ids = loadDetectorIds('pageRank.txt', k)
 	print detector_ids
 
 	N = loadDNCNetwork(filename, p_infect, p_infect_hardened, t_recover, detector_ids, hardened_ids)
 
 	p_initial_infect = 0.02 # Range 0-1 proportion of nodes to infect initially
-	num_detectors = 4 # number of detectors that must be alerted for simulation to end
+	num_detectors = 10 # number of detectors that must be alerted for simulation to end
 	runOutBreakTimestamp(N, p_initial_infect, num_detectors)
 
 
