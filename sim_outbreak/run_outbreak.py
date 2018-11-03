@@ -105,7 +105,7 @@ def runOutBreakTimestamp(Network, p_initial_infect, num_detectors):
 	
 	# Run outbreak until num_detectors are alerted (or we send the last email)
 	while len(detectors_alerted) < num_detectors and cur_timestamp <= max_timestamp:
-		if steps % 100000 == 0:
+		if steps % 20000 == 0:
 			print 'STEP: ' + str(steps)
 			print 'TIMESTAMP: ' + str(cur_timestamp)
 			print 'CURRENTLY INFECTED: ' + str(cur_infected_ids)

@@ -77,7 +77,7 @@ def runOutBreakTimestamp2(Network, p_initial_infect, num_detectors):
                                               
         infected = False
         for _ in range(timestamp[3]): # since an edge w/ the same timestamp can occur multiple times
-            if infectNode(Network, eid):
+            if sourceNode in cur_infected_ids and infectNode(Network, eid):
                 infected = True
                 break # b/c we do have an infection
         
