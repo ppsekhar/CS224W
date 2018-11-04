@@ -237,7 +237,7 @@ def loadTestNetwork():
 def loadDetectorIds(rankingFilename, k):
 	print 'Choosing ' + str(k) + ' detector ids'
 	detector_ids = []
-	with open(filename,'rb') as tsvin:
+	with open(rankingFilename,'rb') as tsvin:
 		tsvin = csv.reader(tsvin, delimiter='\t')
 		i = 0
 		for row in tsvin:
