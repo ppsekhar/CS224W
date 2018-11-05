@@ -11,7 +11,7 @@ if __name__== "__main__":
 	parser.add_argument('--score_filename', help='scores to load as detectors', default='../socialScore/socialScore.txt')
 	parser.add_argument('--p_infect', help='probability a node gets infected through edge if neighbor is infected')
 	parser.add_argument('--total_detectors', help='number of nodes to select as detectors')
-	parser.add_argument('--p_initial_infect', help='number of nodes to mark as infected initially')
+	parser.add_argument('--p_initial_infect', help='percentage of nodes to mark as infected initially')
 	parser.add_argument('--p_detectors_alerted', help='number of detectors that must be alerted for simulation to end')
 	parser.add_argument('--debug', help='True to print verbose outputs', default=False)
 	parser.add_argument('--write_output_to_file', help='True to save results and inputs in text file', default=False)
