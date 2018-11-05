@@ -46,13 +46,13 @@ def runOutBreakTimestamp2(Network, p_initial_infect, num_detectors, graph_file, 
     cur_infected_ids = []
     detectors_alerted = []
     
-    for i in range(int(num_nodes_infect)):
+    while len(cur_infected_ids) < num_nodes_infect:
         nID = Network.GetRndNId(Rnd) # TODO: make this return different values on every run
         if nID not in cur_infected_ids:
             cur_infected_ids.append(nID)
             Network.AddStrAttrDatN(nID, 'infected', 'state') # resets state
-        if Network.GetStrAttrDatN(nID, 'type') == 'detector' and nID not in detectors_alerted:
-            detectors_alerted.append(nID)
+            if Network.GetStrAttrDatN(nID, 'type') == 'detector' and nID not in detectors_alerted:
+                detectors_alerted.append(nID)
 
     print 'INITIAL SET OF INFECTED NODES Size: ' + str( len(cur_infected_ids) )
     
@@ -91,9 +91,10 @@ def runOutBreakTimestamp2(Network, p_initial_infect, num_detectors, graph_file, 
         
         eid = Network.GetEI(sourceNode, destNode)
         
-        if Network.GetStrAttrDatN(destNode, 'type') == 'detector':
-            if destNode not in detectors_alerted:
-                detectors_alerted.append(destNode)
+        if sourceNode in cur_infected_ids: # need to chekc if our source node is infected before setting off detector
+            if Network.GetStrAttrDatN(destNode, 'type') == 'detector':
+                if destNode not in detectors_alerted:
+                    detectors_alerted.append(destNode)
                                               
         infected = False
         for _ in range(timestamp[3]): # since an edge w/ the same timestamp can occur multiple times
