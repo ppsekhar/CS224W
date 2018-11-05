@@ -241,11 +241,10 @@ def loadDetectorIds(rankingFilename, k):
 		tsvin = csv.reader(tsvin, delimiter='\t')
 		i = 0
 		for row in tsvin:
-			if i != 0: # Ignore header
-				if i >= (k + 1):
-					break
-				nID = int(row[0])
-				detector_ids.append(nID)
+			if i >= (k + 1):
+				break
+			nID = int(row[0])
+			detector_ids.append(nID)
 			i+=1
 
 	return detector_ids
