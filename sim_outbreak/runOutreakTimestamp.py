@@ -62,14 +62,15 @@ def runOutBreakTimestamp2(Network, p_initial_infect, num_detectors, graph_file, 
     num_nodes_infected = len(cur_infected_ids)
     steps = 0
     found_earliest_infection = False
-    time_first_infection = 0
+    time_first_infection = timestampsOrdered[0][0] # first infection is at least from the first e-mail's time
     
     for timestamp in timestampsOrdered: # cycle thru the timestamps in the e-mails
         
         if len(detectors_alerted) == num_detectors: # outbreak detected!
             print "Outbreak detected!"
-            print "Detectors Alerted: "
+            
             if debug:
+                print "Detectors Alerted: "
                 print detectors_alerted
             print "STEP: " + str(steps)
             print "TIME INITIAL INFECTION: " + str(time_first_infection) + " TIME DETECTION: " + str(cur_time)
@@ -82,7 +83,7 @@ def runOutBreakTimestamp2(Network, p_initial_infect, num_detectors, graph_file, 
             if steps % 1000 == 0:
                 print 'STEP: ' + str(steps)
                 print 'CURRENTLY INFECTED: ' + str(cur_infected_ids)
-                print 'DETECTORS ALERTED: ' + str(detectors_alerted)
+                print 'DETECTORS ALERTED: ' + str(detectors_alerted) + '\n\n'
         
         cur_time = timestamp[0]
         sourceNode = timestamp[1]
@@ -97,7 +98,7 @@ def runOutBreakTimestamp2(Network, p_initial_infect, num_detectors, graph_file, 
         infected = False
         for _ in range(timestamp[3]): # since an edge w/ the same timestamp can occur multiple times
             if sourceNode in cur_infected_ids:
-                if not found_earliest_infection:
+                if not found_earliest_infection: # use the first infected e-mail transmission to track the start of the infection
                     time_first_infection = cur_time
                     found_earliest_infection = True
                 if infectNode(Network, eid):
@@ -111,3 +112,4 @@ def runOutBreakTimestamp2(Network, p_initial_infect, num_detectors, graph_file, 
         steps += 1
 
     print 'NO OUTBREAK DETECTED'
+    return detectors_alerted, str( datetime.datetime.fromtimestamp(cur_time) - datetime.datetime.fromtimestamp(time_first_infection) ), cur_infected_ids
