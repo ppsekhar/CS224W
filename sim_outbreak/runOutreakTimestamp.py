@@ -54,7 +54,7 @@ def runOutBreakTimestamp2(Network, p_initial_infect, num_detectors, graph_file, 
         if Network.GetStrAttrDatN(nID, 'type') == 'detector' and nID not in detectors_alerted:
             detectors_alerted.append(nID)
 
-    print 'INITIAL SET OF INFECTED NODES Size: ' + str(num_nodes_infect)
+    print 'INITIAL SET OF INFECTED NODES Size: ' + str( len(cur_infected_ids) )
     
     if debug:
         print cur_infected_ids
