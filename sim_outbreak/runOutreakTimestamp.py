@@ -63,11 +63,12 @@ def runOutBreakTimestamp2(Network, p_initial_infect, num_detectors, graph_file, 
     steps = 0
     found_earliest_infection = False
     time_first_infection = timestampsOrdered[0][0] # first infection is at least from the first e-mail's time
+    cur_time = timestampsOrdered[0][0]
     
     for timestamp in timestampsOrdered: # cycle thru the timestamps in the e-mails
         
-        if len(detectors_alerted) == num_detectors: # outbreak detected!
-            print "Outbreak detected!"
+        if len(detectors_alerted) >= num_detectors: # outbreak detected!
+            print "Outbreak detected!" # needs to be >= since we may start already detecting the outbreak
             
             if debug:
                 print "Detectors Alerted: "
