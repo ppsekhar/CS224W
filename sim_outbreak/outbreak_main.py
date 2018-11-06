@@ -40,7 +40,7 @@ if __name__== "__main__":
 		write_output = True
 
 
-	num_detectors_alerted = int(p_detectors_alerted * total_detectors) # Calculate raw number of detectors that must be alerted to end simulation
+	num_detectors_alerted = math.ceil(p_detectors_alerted * total_detectors) # Calculate raw number of detectors that must be alerted to end simulation
 	
 	t_recover = 30 # unused TODO: Include in SIS model
 	detector_ids = loadDetectorIds(score_filename, total_detectors)
