@@ -1,0 +1,126 @@
+p_initial_infect_params = [0.0005, 0.001, 0.005, 0.01, 0.05, 0.1]
+total_detectors_params = range(10, 500, 45)
+p_detectors_alerted_params = [ float(p) / 100 for p in range(5, 51, 5) ]
+p_infect_params = [ float(p) / 100 for p in range(5, 51, 5) ]
+
+filename = 'out.dnc-temporalGraph'
+timestampsOrdered = orderTimestamps(filename)
+score_filename = 'socialScore.txt'
+debug = True
+del(timestampsOrdered[0])
+
+## function Andrew modified to do grid search
+# pre-computes timestamps 
+def outbreakTimestamp_gridSearch(Network, p_initial_infect, num_detectors, graph_file, timestampsOrdered, debug=False ):
+    print 'running timestamp model 2 by Andrew'
+
+    # Creates different output for different executions
+    Rnd = snap.TRnd(42)
+    Rnd.Randomize()
+    
+    # Mark initial nodes infected
+    num_nodes_infect = math.floor(Network.GetNodes() * p_initial_infect)
+    cur_infected_ids = []
+    detectors_alerted = []
+    
+    while len(cur_infected_ids) < num_nodes_infect:
+        nID = Network.GetRndNId(Rnd) # TODO: make this return different values on every run
+        if nID not in cur_infected_ids:
+            cur_infected_ids.append(nID)
+            Network.AddStrAttrDatN(nID, 'infected', 'state') # resets state
+            if Network.GetStrAttrDatN(nID, 'type') == 'detector' and nID not in detectors_alerted:
+                detectors_alerted.append(nID)
+
+
+    num_nodes_infect = len(cur_infected_ids)
+    print 'INITIAL SET OF INFECTED NODES Size: ' + str( num_nodes_infect )
+    
+    if debug:
+        print cur_infected_ids
+
+    num_nodes_infected = len(cur_infected_ids)
+    steps = 0
+    found_earliest_infection = False
+    time_first_infection = timestampsOrdered[0][0] # first infection is at least from the first e-mail's time
+    cur_time = timestampsOrdered[0][0]
+    
+    for timestamp in timestampsOrdered: # cycle thru the timestamps in the e-mails
+        
+        if len(detectors_alerted) >= num_detectors: # outbreak detected!
+            print "Outbreak detected!"
+            
+            if debug:
+                print "Detectors Alerted: "
+                print detectors_alerted
+                print "STEP: " + str(steps)
+                print "TIME INITIAL INFECTION: " + str(time_first_infection) + " TIME DETECTION: " + str(cur_time)
+                print "TIME TO DETECTION: " + str(time_to_detection)
+            print "NUM INFECTED: " + str(len(cur_infected_ids))
+            return cur_time - time_first_infection, len(cur_infected_ids) - num_nodes_infect, steps, 1
+        
+        if debug:
+            if steps % 1000 == 0:
+                print 'STEP: ' + str(steps)
+                print 'CURRENTLY INFECTED: ' + str(cur_infected_ids)
+                print 'DETECTORS ALERTED: ' + str(detectors_alerted) + '\n\n'
+        
+        cur_time = timestamp[0]
+        sourceNode = timestamp[1]
+        destNode = timestamp[2]
+        
+        eid = Network.GetEI(sourceNode, destNode)
+        
+        if sourceNode in cur_infected_ids: # need to chekc if our source node is infected before setting off detector
+            if Network.GetStrAttrDatN(destNode, 'type') == 'detector':
+                if destNode not in detectors_alerted:
+                    detectors_alerted.append(destNode)
+                                              
+        infected = False # we are seeing if this edge can infect another node
+        for _ in range(timestamp[3]): # since an edge w/ the same timestamp can occur multiple times
+            if sourceNode in cur_infected_ids:
+                if not found_earliest_infection: # use the first infected e-mail transmission to track the start of the infection
+                    time_first_infection = cur_time
+                    found_earliest_infection = True
+                if infectNode(Network, eid):
+                    infected = True
+                    break # b/c we do have an infection
+        
+        if infected: # let's add another infected node
+            if destNode not in cur_infected_ids:
+                cur_infected_ids.append(destNode)
+                Network.AddStrAttrDatN(destNode, 'infected', 'state')
+        steps += 1
+
+    print 'NO OUTBREAK DETECTED'
+    return cur_time - time_first_infection, len(cur_infected_ids) - num_nodes_infect, steps, 0
+
+grid_search_results = []
+
+for p_initial_infect in p_initial_infect_params:
+    for total_detectors in total_detectors_params: 
+        for p_detectors_alerted in p_detectors_alerted_params:
+            for p_infect in p_infect_params:
+                
+                print('\n\n\n-------------------------------------------\nNew Set of Parameters\n')
+                print "P_initial_infect = " + str(p_initial_infect)
+                print "\nTotal Detectors = " + str(total_detectors)
+                print "\nNumber of detectors required to trigger alert: " + str( math.ceil( p_detectors_alerted * total_detectors) )
+                print "\nProbability of infecting neighbor = " + str(p_infect)
+        
+                detector_ids = loadDetectorIds('socialScore.txt', total_detectors)
+                N = loadDNCNetwork(filename, p_infect, p_infect, 30, detector_ids, detector_ids) # customized graph
+
+                trial_results = np.empty((10,4))
+                for i in range(10):
+                    time_to_detection, num_infected_nodes, steps, outbreak_detected = outbreakTimestamp_gridSearch(N, p_initial_infect, math.ceil( p_detectors_alerted * total_detectors), filename, timestampsOrdered, False)
+                    trial_results[i] = np.asarray( [time_to_detection, num_infected_nodes, steps, outbreak_detected] )
+                avg_trial_results = np.average(trial_results, 0)
+
+                results = [p_initial_infect, total_detectors, p_detectors_alerted, p_infect, str( datetime.timedelta(seconds = avg_trial_results[0]) ), avg_trial_results[1], avg_trial_results[2], avg_trial_results[3]]
+                print "Results for this set of parameters:\n"
+                for item in results:
+                    print item
+                grid_search_results.append(results)
+                
+                print '\n'
+                
