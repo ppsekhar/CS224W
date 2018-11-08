@@ -1,0 +1,38 @@
+{
+	"TotalRunCount": 100,
+
+	"InitialInfected": {
+		"min": 0.005,
+		"max": 0.1
+	},
+
+	"infectProbability": {
+		"min": 0.8,
+		"max": 0.2,
+		"increment": 0.05
+	},
+
+	"NumDetectors": {
+		"min": 450,
+		"max": 550,
+		"increment": 50 
+	},
+
+	"triggeredDetectors": {
+		"min": 0.1,
+		"max": 0.1
+	},
+
+	"detectors": {
+		"detectorSelection": "random",
+		"detectorNodes": "../socialScore/socialScore.txt"
+	},
+
+	"output": "random.txt", 
+
+	"debug": "True"
+
+}
+
+
+
