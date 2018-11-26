@@ -1,4 +1,5 @@
 P_infect = 0.2 P_initial_infect = 0.001 Runs per marginal node = 1000
+(end_time - start_time) / 3600 = 21.326508333351878
 Node ID	Reward so Far	Marginal gain
 1669	0.456	0.456
 1874	0.456	0.05399999999999999
