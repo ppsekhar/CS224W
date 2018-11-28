@@ -1,4 +1,6 @@
 P_infect = 0.2 P_initial_infect = 0.001 Runs per marginal node = 1000
+Ran on CELF w/ independent stochastic runs
+80% training data
 Node ID	Reward so Far	Marginal gain
 1874	0.379	0.379
 246	0.424	0.044999999999999984
