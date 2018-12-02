@@ -572,7 +572,7 @@ def getAvgResponseTime(temporalMap):
 # In[17]:
 
 
-def GetSocialAttributes(df, NodeAttributes):
+def GetSocialAttributes(df, NodeAttributes, threshold=0):
     
     # Generate NetworkX graph
     #
@@ -583,7 +583,7 @@ def GetSocialAttributes(df, NodeAttributes):
     # Keep edges with edge weight > 4 (exchanged > 4 emails)
     #
 
-    uGNx = GeneratePrunedDirectedGraph(GNx, N=4)
+    uGNx = GeneratePrunedDirectedGraph(GNx, N=threshold)
     
     temporalMap = getEmailSentByNode(GNx)
     normTimeScore = getAvgResponseTime(temporalMap)
@@ -648,7 +648,7 @@ def GetSocialAttributes(df, NodeAttributes):
         NodeAttributes[node]['normRawClique'] = float(score - minRawCliqueScore)/float(maxRawCliqueScore - minRawCliqueScore)
     
     for node, score in weightedCliqueList:
-        NodeAttributes[node]['weigthedClique'] = score
+        NodeAttributes[node]['weightedClique'] = score
         NodeAttributes[node]['normWeightedClique'] = float(score - minWeightedCliqueScore)/float(maxWeightedCliqueScore - minWeightedCliqueScore)
      
     #print "\nNode 1874 features: ", NodeAttributes[1874]
@@ -661,7 +661,7 @@ def GetSocialAttributes(df, NodeAttributes):
 # Social hierarchy can be determined by how often a person receives a response to their mail within first 10 mails sent by the receipient. Instead of using time as a measure which can be skewed due to different time zones or working hours, a priority of mails can be a better indicator of a persons importance in the organization 
 # 
 
-# In[18]:
+# In[25]:
 
 
 def getNodeResponseList(GNx):
@@ -685,7 +685,7 @@ def getNodeResponseList(GNx):
     return nodeAdj, nodeResponseTuple
 
 
-# In[19]:
+# In[26]:
 
 
 def getAvgResponseScore(nodeAdj, nodeResponseTuple):
@@ -771,10 +771,10 @@ def getAvgResponseScore(nodeAdj, nodeResponseTuple):
     return normResponseScore
 
 
-# In[20]:
+# In[27]:
 
 
-def GetModifiedSocialAttributes(df, NodeAttributes):
+def GetModifiedSocialAttributes(df, NodeAttributes, threshold=0):
     
     # Generate NetworkX graph
     #
@@ -785,7 +785,7 @@ def GetModifiedSocialAttributes(df, NodeAttributes):
     # Keep edges with edge weight > 4 (exchanged > 4 emails)
     #
 
-    uGNx = GeneratePrunedDirectedGraph(GNx, N=0)
+    uGNx = GeneratePrunedDirectedGraph(GNx, N=threshold)
     
     nodeAdj, nodeResponseTuple = getNodeResponseList(GNx)
     normResponseScore = getAvgResponseScore(nodeAdj, nodeResponseTuple)
@@ -870,7 +870,7 @@ def GetModifiedSocialAttributes(df, NodeAttributes):
 # score & = \frac{\Sigma_{all\ x} w * C_x}{\Sigma_{all\ x} w}
 # \end{align}
 
-# In[21]:
+# In[28]:
 
 
 def ComputeSocialScore(NodeAttributes):
@@ -920,10 +920,10 @@ def ComputeSocialScore(NodeAttributes):
     return socialScore
 
 
-# In[22]:
+# In[31]:
 
 
-def ComputeNodeScore(df, G):
+def ComputeNodeScore(df, G, modified=False, threshold=0):
     #
     # Create a Node Attribute Dictionary
     #
@@ -937,8 +937,12 @@ def ComputeNodeScore(df, G):
     #
     # Get Social Attributes for nodes 
     #
-    print "Get Modified Social Score Attributes... "
-    GetModifiedSocialAttributes(df, NodeAttributes)
+    if modified:
+        print "Get Modified Social Score Attributes... "
+        GetModifiedSocialAttributes(df, NodeAttributes, threshold=threshold) 
+    else:
+        print "Get Social Score Attributes... "
+        GetSocialAttributes(df, NodeAttributes, threshold=threshold)
     
     print "Compute Social Score... "
     socialScore = ComputeSocialScore(NodeAttributes)
@@ -947,7 +951,7 @@ def ComputeNodeScore(df, G):
     
 
 
-# In[23]:
+# In[32]:
 
 
 if __name__ == '__main__':
@@ -955,12 +959,12 @@ if __name__ == '__main__':
     df, G = GenerateGraph(filename='/home/merchantsameer2014/project/dnc-temporalGraph/out.dnc-temporalGraph')
     
     start_time = datetime.now()
-    socialScore, NodeAttributes = ComputeNodeScore(df, G)
+    socialScore, NodeAttributes = ComputeNodeScore(df, G, modified=True, threshold=0)
     end_time = datetime.now()
     print('Total time to compute Social Score: {}'.format(end_time - start_time))
 
     
-    with open('socialScore_modified_unpruned.txt', 'w') as fd:
+    with open('socialScoreModifed_all_test.txt', 'w') as fd:
         for (node, score) in socialScore:
             fd.write("%r\t%r\n" % (node, score))
     
