@@ -12,7 +12,7 @@ import networkx as nx
 from datetime import datetime
 from matplotlib.pyplot import loglog 
 
-get_ipython().magic(u'matplotlib inline')
+#get_ipython().magic(u'matplotlib inline')
 
 
 # In[2]:
